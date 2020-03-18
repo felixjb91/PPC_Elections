@@ -1,0 +1,4 @@
+[0m[[0m[31merror[0m] [0m[0m/home/felix/Documents/CoursM2/PPC/vague2/cours/11/Projet_code/src/main/scala/BeatActor.scala:40:77: not found: value ReatTick[0m
+[0m[[0m[31merror[0m] [0m[0m             context.system.scheduler.scheduleOnce(time milliseconds, self, ReatTick)[0m
+[0m[[0m[31merror[0m] [0m[0m                                                                            ^[0m
+[0m[[0m[31merror[0m] [0m[0mone error found[0m

@@ -1,0 +1,4 @@
+[debug] [root-test] Classpath dependencies List()
+[debug] [root-test] Dependencies from configurations List(root)
+[debug] Bloop wrote the configuration of project 'root-test' to '/home/felix/Documents/CoursM2/PPC/vague2/cours/11/Projet_code/.bloop/root-test.json'
+[success] Generated .bloop/root-test.json

@@ -1,0 +1,14 @@
+compile
+run
+1
+run 1
+run 2
+run 3
+run 2
+compile
+run 0
+compile
+run 1
+compiel
+compile
+run 3
