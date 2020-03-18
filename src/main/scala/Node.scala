@@ -45,18 +45,23 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
                displayActor ! Message (content)
           }
 
-          case BeatLeader (nodeId) => 
+          case BeatLeader (nodeId) => this.getNode(nodeId) ! IsAlive(this.id)
 
-          case Beat (nodeId) => 
+          case Beat (nodeId) => this.getNode(nodeId) ! IsAliveLeader(this.id)
 
           // Messages venant des autres nodes : pour nous dire qui est encore en vie ou mort
-          case IsAlive (id) => 
+          case IsAlive (id) => checkerActor ! IsAlive (this.id)
 
-          case IsAliveLeader (id) => 
+          case IsAliveLeader (id) => checkerActor ! IsAliveLeader (this.id)
 
           // Message indiquant que le leader a change
           case LeaderChanged (nodeId) => 
 
+     }
+
+     def getNode (nodeId: Int): ActorSelection = {
+          val n = this.terminaux(nodeId);
+          return context.actorSelection("akka.tcp://LeaderSystem" + n.id + "@" + n.ip + ":" + n.port + "/user/Node")
      }
 
 }

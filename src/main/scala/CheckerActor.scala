@@ -30,13 +30,20 @@ class CheckerActor (val id:Int, val terminaux:List[Terminal], electionActor:Acto
         }
 
         // A chaque fois qu'on recoit un Beat : on met a jour la liste des nodes
-        case IsAlive (nodeId) => 
+        case IsAlive (nodeId) => father ! Message ("node " + nodeId + "is alive !")
 
-        case IsAliveLeader (nodeId) => 
+        case IsAliveLeader (nodeId) => father ! Message ("node " + nodeId + "is Leader and is alive !")
 
         // A chaque fois qu'on recoit un CheckerTick : on verifie qui est mort ou pas
         // Objectif : lancer l'election si le leader est mort
-        case CheckerTick => 
+        case CheckerTick => {
+             nodesAlive.foreach(n => {
+                  if (n != leader) father ! Beat (n)
+                  else father ! BeatLeader (n)
+             })  
+             lastDate = new Date
+             father ! Message (lastDate.toString())
+        }
 
     }
 
