@@ -20,29 +20,57 @@ class CheckerActor (val id:Int, val terminaux:List[Terminal], electionActor:Acto
      var datesForChecking:List[Date] = List()
      var lastDate:Date = null
 
-     var leader : Int = -1
+     var nodesChecked: List[Int] = List()
+
+     var leader : Int = 0
 
     def receive = {
 
          // Initialisation
-        case Start => {
-             self ! CheckerTick
+        case Start () => {
+            self ! CheckerTick
+            father ! Message("test!!!")
         }
 
         // A chaque fois qu'on recoit un Beat : on met a jour la liste des nodes
-        case IsAlive (nodeId) => father ! Message ("node " + nodeId + "is alive !")
+        case IsAlive (nodeId) => {
+          if (!nodesAlive.contains(nodeId)) {
+            nodesAlive:::List(nodeId)
+            father ! Message ("Node " + nodeId + " is born !")
+          }
 
-        case IsAliveLeader (nodeId) => father ! Message ("node " + nodeId + "is Leader and is alive !")
+        }
+//          father ! Message ("node " + nodeId + " is alive !")
+
+        case IsAliveLeader (nodeId) => {
+          if(nodeId == this.id) father ! Message ("I'm the Leader !")
+          if (leader != nodeId) {
+            leader = nodeId
+            father ! LeaderChanged (nodeId)
+          }
+        }
+
+//          father ! Message ("node " + nodeId + " is Leader and is alive !")
+
 
         // A chaque fois qu'on recoit un CheckerTick : on verifie qui est mort ou pas
         // Objectif : lancer l'election si le leader est mort
         case CheckerTick => {
-             nodesAlive.foreach(n => {
-                  if (n != leader) father ! Beat (n)
-                  else father ! BeatLeader (n)
-             })  
-             lastDate = new Date
-             father ! Message (lastDate.toString())
+
+          context.system.scheduler.scheduleOnce(this.time milliseconds, self, CheckerTick)
+
+          father ! Message("Tick")
+          val toDelete: List[Int] = List()
+            for(i <- 0 to nodesAlive.length) {
+              if (!nodesChecked.contains(i)) {
+                if(i == leader) {
+                  father ! Message ("Node "+ i + " was leader but is dead !!!!!!!!!!!!!!!!!")
+                }
+                else father ! Message ("Node "+ i + " is dead !")
+                toDelete:::List(i)
+              }
+            }
+          nodesAlive = nodesAlive.filter(n => toDelete.contains(n))
         }
 
     }
