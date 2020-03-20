@@ -21,7 +21,7 @@ case class LeaderChanged (nodeId:Int)
 
 class BeatActor (val id:Int) extends Actor {
 
-     val time : Int = 50
+     val time : Int = 500
      val father = context.parent
      var leader : Int = 0 // On estime que le premier Leader est 0
 
@@ -37,16 +37,16 @@ class BeatActor (val id:Int) extends Actor {
 
         // Objectif : prevenir tous les autres nodes qu'on est en vie
         case BeatTick => {
-          context.system.scheduler.scheduleOnce(this.time milliseconds, self, ReatTick)
-          system.scheduler.scheduleOnce(time milliseconds) {
-               testActor ! System.currentTimeMillis
-          }
+           context.system.scheduler.scheduleOnce(this.time milliseconds, self, BeatTick)
 
-
+          if(this.id == this.leader) father ! BeatLeader(this.id)
+          else father ! Beat(this.id)
         }
 
-        case LeaderChanged (nodeId) => 
+        case LeaderChanged (nodeId) => leader = nodeId
 
     }
 
 }
+
+

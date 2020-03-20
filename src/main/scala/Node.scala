@@ -8,6 +8,7 @@ sealed trait SyncMessage
 case class Sync (nodes:List[Int]) extends SyncMessage
 case class SyncForOneNode (nodeId:Int, nodes:List[Int]) extends SyncMessage
 
+case class BeatTicks(nodeId: Int)
 sealed trait AliveMessage
 case class IsAlive (id:Int) extends AliveMessage
 case class IsAliveLeader (id:Int) extends AliveMessage
@@ -45,17 +46,28 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
                displayActor ! Message (content)
           }
 
-          case BeatLeader (nodeId) => this.getNode(nodeId) ! IsAlive(this.id)
+          case BeatTicks (nodeId) => {
+               allNodes.foreach(n => {
+                    if(this.id == nodeId) n ! IsAliveLeader(this.id)
+                    else n ! IsAlive(this.id)
+               })
+          }
+          case BeatLeader (nodeId) => allNodes.foreach(n  => n ! IsAliveLeader(this.id))
+//               this.getNode(nodeId) ! IsAlive(this.id)
 
-          case Beat (nodeId) => this.getNode(nodeId) ! IsAliveLeader(this.id)
+          case Beat (nodeId) => allNodes.foreach(n  => n ! IsAlive(this.id))
+//               this.getNode(nodeId) ! IsAliveLeader(this.id)
 
           // Messages venant des autres nodes : pour nous dire qui est encore en vie ou mort
-          case IsAlive (id) => checkerActor ! IsAlive (this.id)
+          case IsAlive (nodeId) => checkerActor ! IsAlive (nodeId)
 
-          case IsAliveLeader (id) => checkerActor ! IsAliveLeader (this.id)
+          case IsAliveLeader (nodeId) => checkerActor ! IsAliveLeader (nodeId)
 
           // Message indiquant que le leader a change
-          case LeaderChanged (nodeId) => 
+          case LeaderChanged (nodeId) => {
+               beatActor ! LeaderChanged (nodeId)
+               self ! Message("Node " + nodeId + " is the new Leader !")
+          }
 
      }
 
@@ -65,3 +77,4 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
      }
 
 }
+

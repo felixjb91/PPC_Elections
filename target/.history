@@ -1,23 +1,71 @@
 compile
+run 0
+run 1
+compile
+run 1
+run 3
+compile
+sbt
+run 0
+run 1
+compile
+run 0
+run 1
+compile
+run 1
+compile
 run
-1
+run 0
+compile
+run 0
+compile
+run 0
 run 1
-run 2
-run 3
+compile
+run 0
+run 1
+compile
+run 0
+run 1
+run 0
+run 1
+compile
+run 1
+compile
+run 1
 run 2
 compile
 run 0
 compile
+run 0
 run 1
-compiel
+run 2
 compile
-run 3
+run 0
+run 1
 compile
 run 0
 run 1
 run 2
-run 3
+compile
+run 1
+run 2
+comoiel
 compile
 run 0
-run 
+run 1
+compile
+run 0
+run 1
+compile
+run 0
+run 1
+compile 
+run 0
+run 1
+comile
+compile
+run 0
+run 1
+run 2
 run 1
