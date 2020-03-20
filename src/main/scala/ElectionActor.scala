@@ -26,6 +26,8 @@ class ElectionActor (val id:Int, val terminaux:List[Terminal]) extends Actor {
      var candPred:Int = -1
      var status:NodeStatus = new Passive ()
 
+     var neigh:Int = -1
+
      def receive = {
 
           // Initialisation
@@ -45,7 +47,17 @@ class ElectionActor (val id:Int, val terminaux:List[Terminal]) extends Actor {
                self ! Initiate
           }
 
-          case Initiate => 
+          case Initiate => {
+               this.status = new Candidate
+               val indice = this.nodesAlive.indexOf(this.id)
+               if (this.nodesAlive.length-1 > indice) {
+                    this.neigh = this.nodesAlive(indice+1)
+//                    getNode(neigh) ! ALG(this.id)
+               } else if (this.nodesAlive.length > 1) {
+                    this.neigh = this.nodesAlive.head
+               } else father ! LeaderChanged(this.id)
+
+          }
 
           case ALG (list, init) => 
 
@@ -53,6 +65,11 @@ class ElectionActor (val id:Int, val terminaux:List[Terminal]) extends Actor {
 
           case AVSRSP (list, k) => 
 
+     }
+
+     def getNode (nodeId: Int): ActorSelection = {
+          val n = this.terminaux(nodeId);
+          return context.actorSelection("akka.tcp://LeaderSystem" + n.id + "@" + n.ip + ":" + n.port + "/user/Node")
      }
 
 }

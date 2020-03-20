@@ -72,7 +72,7 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
      }
 
      def getNode (nodeId: Int): ActorSelection = {
-          val n = this.terminaux(nodeId);
+          val n = this.terminaux(nodeId)
           return context.actorSelection("akka.tcp://LeaderSystem" + n.id + "@" + n.ip + ":" + n.port + "/user/Node")
      }
 
