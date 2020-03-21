@@ -40,8 +40,8 @@ class CheckerActor (val id:Int, val terminaux:List[Terminal], electionActor:Acto
         }
 
         case IsAliveLeader (nodeId) => {
-//          if(nodeId == this.id) father ! Message ("I'm the Leader !")
-//          else father ! Message ("Node "+ nodeId + " is leader and is alive" )
+          if(nodeId == this.id) father ! Message ("I'm the Leader !")
+          else father ! Message ("Node "+ nodeId + " is leader and is alive" )
           if (leader != nodeId) {
             leader = nodeId
             father ! LeaderChanged (nodeId)
@@ -54,12 +54,14 @@ class CheckerActor (val id:Int, val terminaux:List[Terminal], electionActor:Acto
         // Objectif : lancer l'election si le leader est mort
         case CheckerTick => {
           context.system.scheduler.scheduleOnce(this.time milliseconds, self, CheckerTick)
-
+          if(leader == this.id) father ! Message ("I'm the Leader !")
           for(i <- nodesAliveOld.indices) {
             val current = nodesAliveOld(i)
             if (!nodesAlive.contains(current)) {
               if (current == leader) {
-                father ! Message ("Node " + current + " was leader but is dead !!!!!!!!!!!!!!!!!")
+                father ! Message ("The leader node " + current + " is dead !")
+                father ! Message (this.id + " -> Start Elections !")
+                father ! StartElection (nodesAlive:::List(this.id))
               }
               else father ! Message ("Node " + current + " is dead !")
             }

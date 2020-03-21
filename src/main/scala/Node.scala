@@ -7,7 +7,9 @@ case class Start ()
 sealed trait SyncMessage
 case class Sync (nodes:List[Int]) extends SyncMessage
 case class SyncForOneNode (nodeId:Int, nodes:List[Int]) extends SyncMessage
-
+case class ResetStatus ()
+case class StartElection (list:List[Int])
+case class SetPassive ()
 case class BeatTicks(nodeId: Int)
 sealed trait AliveMessage
 case class IsAlive (id:Int) extends AliveMessage
@@ -16,7 +18,7 @@ case class IsAliveLeader (id:Int) extends AliveMessage
 class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
 
      // Les differents acteurs du systeme
-     val electionActor = context.actorOf(Props(new ElectionActor(this.id, terminaux)), name = "electionActor")
+     var electionActor = context.actorOf(Props(new ElectionActor(this.id, terminaux)), name = "electionActor")
      val checkerActor = context.actorOf(Props(new CheckerActor(this.id, terminaux, electionActor)), name = "checkerActor")
      val beatActor = context.actorOf(Props(new BeatActor(this.id)), name = "beatActor")
      val displayActor = context.actorOf(Props[DisplayActor], name = "displayActor")
@@ -53,10 +55,8 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
                })
           }
           case BeatLeader (nodeId) => allNodes.foreach(n  => n ! IsAliveLeader(this.id))
-//               this.getNode(nodeId) ! IsAlive(this.id)
 
           case Beat (nodeId) => allNodes.foreach(n  => n ! IsAlive(this.id))
-//               this.getNode(nodeId) ! IsAliveLeader(this.id)
 
           // Messages venant des autres nodes : pour nous dire qui est encore en vie ou mort
           case IsAlive (nodeId) => checkerActor ! IsAlive (nodeId)
@@ -65,10 +65,23 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
 
           // Message indiquant que le leader a change
           case LeaderChanged (nodeId) => {
-               beatActor ! LeaderChanged (nodeId)
+               beatActor ! LeaderChanged(nodeId)
                self ! Message("Node " + nodeId + " is the new Leader !")
           }
 
+          case ALG (init) => electionActor ! ALG(init)
+
+          case AVS (j) => electionActor ! AVS(j)
+
+          case AVSRSP (k) => electionActor ! AVSRSP(k)
+
+          case StartWithNodeList (list, init) => electionActor ! StartWithNodeList(list, init)
+
+          case StartElection (list) => allNodes.foreach(n => n ! StartWithNodeList(list, this.id))
+
+          case ResetStatus => allNodes.foreach(n => n ! SetPassive)
+
+          case SetPassive => this.electionActor = context.actorOf(Props(new ElectionActor(this.id, terminaux)), name = "electionActor")
      }
 
      def getNode (nodeId: Int): ActorSelection = {
@@ -77,4 +90,5 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
      }
 
 }
+
 
