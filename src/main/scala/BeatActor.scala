@@ -43,7 +43,9 @@ class BeatActor (val id:Int) extends Actor {
           else father ! Beat(this.id)
         }
 
-        case LeaderChanged (nodeId) => leader = nodeId
+        case LeaderChanged (nodeId) => {
+          leader = nodeId
+        }
 
     }
 

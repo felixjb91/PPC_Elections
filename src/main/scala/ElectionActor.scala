@@ -26,10 +26,11 @@ class ElectionActor (val id:Int, val terminaux:List[Terminal]) extends Actor {
 
      var candSucc:Int = -1
      var candPred:Int = -1
-     var status:NodeStatus = new Passive ()
+     var status:NodeStatus = new Candidate ()
 
      var neigh:Int = -1
 
+     var timer:Int = 0
      var electionBegin: Boolean = false
 
      def receive = {
@@ -40,99 +41,130 @@ class ElectionActor (val id:Int, val terminaux:List[Terminal]) extends Actor {
           }
 
           case StartWithNodeList (list, init) => {
-               if(!electionBegin) {
-                    electionBegin = true
-                    father ! Message ("list nodes 1 : "+list + " , from " + init)
-                    if (list.isEmpty) {
-                         this.nodesAlive = this.nodesAlive:::List(id)
-                    }
-                    else {
-                         this.nodesAlive = list
-                    }
-                    father ! Message ("list nodes 2 : "+ nodesAlive)
-                    this.actualiseNeigh()
-                    // Debut de l'algorithme d'election
-                    self ! Initiate
-               } else father ! Message ("deja en cours sry")
+              if(!electionBegin) {
+                 electionBegin = true
+                 father ! DontStartAgain
+                 father ! Message ("list nodes 1 : "+list + " , from " + init)
+                 if (list.isEmpty) {
+                      this.nodesAlive = this.nodesAlive:::List(id)
+                 }
+                 else {
+                      this.nodesAlive = list
+                 }
+                 father ! Message ("list nodes 2 : "+ nodesAlive)
+                 this.actualiseNeigh()
+
+                 // Debut de l'algorithme d'election
+                 self ! Initiate
+              }
           }
 
           case Initiate => {
+            if(timer <= 1000)
+            {
+              timer = timer + 1
+              Thread.sleep(1)
+              self ! Initiate
+            }
+            else {
 
-               father ! Message ("Begin intiate")
+              father ! Message("Begin intiate -> " + status)
 
-               this.status = new Candidate
-               getNode(neigh) ! ALG(this.id)
+              //this.status = new Candidate
+              getNode(neigh) ! ALG(this.id)
+            }
           }
 
-          case ALG (/*list, */init) => {
+          case ALG (init) => {
 
-               father ! Message ("Begin ALG from "+init)
+               if(electionBegin) {
+                    father ! Message("Begin ALG from " + init + " -> " + status+ " , candSucc : "+candSucc+ " , candPred : "+candPred)
 
-               this.status match {
-                    case Passive() => {
-                         this.status = new  Dummy
-                         getNode(neigh) ! ALG (init)
+                    this.status match {
+                         case Passive() => {
+                              this.status = new Dummy
+                              father ! Message(id + " send ALG to " + neigh + " (" + init + ")")
+                              getNode(neigh) ! ALG(init)
+                         }
+                         case Candidate() => {
+                              this.candPred = init
+                              if (this.id > init) {
+                                   if (this.candSucc == -1) {
+                                        this.status = new Waiting
+                                        father ! Message(id + " send AVS to " + init)
+                                        getNode(init) ! AVS(this.id)
+                                   } else {
+                                        father ! Message(id + " send AVSRSP to " + candSucc + " (" + candPred + ")")
+                                        getNode(candSucc) ! AVSRSP(candPred)
+                                        this.status = new Dummy
+                                   }
+                              } else if (this.id == init) {
+                                   father ! Message(id + " new Leader")
+                                   this.status = new Leader
+                                   father ! LeaderChanged(this.id)
+                                   father ! SetPassive()
+                              }
+                         }
+                         case _ =>
                     }
-                    case Candidate () => {
-                         this.candPred = init
-                         if (this.id > init) {
-                              if (this.candSucc == -1) {
-                                   this.status = new Waiting
-                                   getNode(init) ! AVS (this.id)
-                              } else {
-                                   getNode(candSucc) ! AVSRSP (candPred)
+               }else { father ! Message ("election pas commencé ALG" )}
+          }
+
+          case AVS (j) => {
+
+               if(electionBegin) {
+
+                    father ! Message("Begin AVS from " + j+ " -> " + status+ " , candSucc : "+candSucc+ " , candPred : "+candPred)
+
+                    this.status match {
+                         case Candidate() => {
+                              if (this.candPred == -1) candSucc = j
+                              else {
+                                   father ! Message(id + " send AVSRSP to " + j + " (" + candPred + ")")
+                                   getNode(j) ! AVSRSP(candPred)
                                    this.status = new Dummy
                               }
-                         } else if (this.id == init) {
-                              this.status = new Leader
-                              father ! LeaderChanged(this.id)
-                              father ! SetPassive()
                          }
+                         case Waiting() => candSucc = j
+                         case _ =>
                     }
-               }
+               } else { father ! Message ("election pas commencé")}
           }
 
-          case AVS (/*list, */j) => {
+          case AVSRSP (k) => {
 
-               father ! Message ("Begin AVS from "+j)
+               if(electionBegin) {
 
-               this.status match {
-                    case Candidate() => {
-                         if (this.candPred == -1) candSucc = j
-                         else {
-                              getNode(j) ! AVSRSP (candPred)
-                              this.status = new Dummy
-                         }
-                    }
-                    case Waiting() => candSucc = j
-               }
-          }
+                    father ! Message("Begin AVSRSP from " + k+ " -> " + status+ " , candSucc : "+candSucc+ " , candPred : "+candPred)
 
-          case AVSRSP (/*list,*/ k) => {
+                    this.status match {
+                         case Waiting() => {
+                              if (this.id == k) {
+                                   this.status = new Leader
+                                   father ! Message(id + " new Leader")
+                                   father ! LeaderChanged(this.id)
+                              }
+                              else {
+                                   candPred = k
+                                   if (candSucc == -1) {
+                                        if (k < this.id) {
+                                             this.status = new Waiting
+                                             father ! Message(id + " send AVS to " + k + " (" + id + ")")
+                                             getNode(k) ! AVS(this.id)
+                                        } else {
+                                             this.status = new Dummy
 
-               father ! Message ("Begin AVSRSP from " + k)
-
-               this.status match {
-                    case Waiting() => {
-                         if (this.id == k) {
-                              this.status = new Leader
-                              father ! LeaderChanged(this.id)
-                         }
-                         else {
-                              candPred = k
-                              if (candSucc == -1) {
-                                   if (k < this.id) {
-                                        this.status = new Waiting
-                                        getNode(k) ! AVS(this.id)
-                                   } else {
-                                        this.status = new Dummy
-                                        getNode(candSucc) ! AVSRSP(k)
+                                             father ! Message(id + " send AVSRSP to " + candSucc + " (" + k + ")")
+                                             getNode(candSucc) ! AVSRSP(k)
+                                        }
                                    }
                               }
                          }
+                         case _ =>
                     }
-               }
+               }else { father ! Message ("election pas commencé")}
           }
+          case _ =>
      }
 
      def getNode (nodeId: Int): ActorSelection = {

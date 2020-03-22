@@ -14,6 +14,7 @@ case class BeatTicks(nodeId: Int)
 sealed trait AliveMessage
 case class IsAlive (id:Int) extends AliveMessage
 case class IsAliveLeader (id:Int) extends AliveMessage
+case class DontStartAgain ()
 
 class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
 
@@ -23,6 +24,8 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
      val beatActor = context.actorOf(Props(new BeatActor(this.id)), name = "beatActor")
      val displayActor = context.actorOf(Props[DisplayActor], name = "displayActor")
 
+     var StartedElection:Boolean = false
+//     var allNodesReady:List[ActorSelection] = List()
      var allNodes:List[ActorSelection] = List()
 
      def receive = {
@@ -58,10 +61,12 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
 
           case Beat (nodeId) => allNodes.foreach(n  => n ! IsAlive(this.id))
 
+
           // Messages venant des autres nodes : pour nous dire qui est encore en vie ou mort
           case IsAlive (nodeId) => checkerActor ! IsAlive (nodeId)
 
           case IsAliveLeader (nodeId) => checkerActor ! IsAliveLeader (nodeId)
+
 
           // Message indiquant que le leader a change
           case LeaderChanged (nodeId) => {
@@ -69,19 +74,37 @@ class Node (val id:Int, val terminaux:List[Terminal]) extends Actor {
                self ! Message("Node " + nodeId + " is the new Leader !")
           }
 
+
+//        Election methodes
           case ALG (init) => electionActor ! ALG(init)
 
           case AVS (j) => electionActor ! AVS(j)
 
           case AVSRSP (k) => electionActor ! AVSRSP(k)
 
-          case StartWithNodeList (list, init) => electionActor ! StartWithNodeList(list, init)
 
-          case StartElection (list) => allNodes.foreach(n => n ! StartWithNodeList(list, this.id))
+//        Start Election
+          case StartWithNodeList (list, init) => if(!StartedElection) electionActor ! StartWithNodeList(list, init)
 
+          case StartElection (list) => if(!StartedElection)  {
+               electionActor ! StartWithNodeList(list, this.id)
+               allNodes.foreach(n => n ! StartWithNodeList(list, this.id))
+          }
+
+          case DontStartAgain => {
+               self ! Message ("StartedElection")
+               StartedElection = true
+          }
+
+
+//        Reset
           case ResetStatus => allNodes.foreach(n => n ! SetPassive)
 
-          case SetPassive => this.electionActor = context.actorOf(Props(new ElectionActor(this.id, terminaux)), name = "electionActor")
+          case SetPassive => {
+               this.electionActor = context.actorOf(Props(new ElectionActor(this.id, terminaux)), name = "electionActor")
+               StartedElection = false
+          }
+
      }
 
      def getNode (nodeId: Int): ActorSelection = {
